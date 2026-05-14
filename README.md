@@ -133,16 +133,6 @@ Engine.java              — GLFW window, render loop, fixed-timestep integrator
 
 ---
 
-## Roadmap
-
-- [ ] Phase 6 — Multi-mesh rendering + `.obj` import
-- [ ] Phase 7 — Helium v2 (conditionals, variables, loops)
-- [ ] Phase 8 — Export simulation to JSON keyframes
-- [ ] Phase 9 — Constraints & joints (hinges, springs)
-- [ ] Phase 10 — Linux / Windows native builds
-
----
-
 ## License
 
 MIT © [alanthecoderishere](https://github.com/alanthecoderishere)
