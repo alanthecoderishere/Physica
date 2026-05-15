@@ -177,8 +177,12 @@ public class PhysicsSolver {
         _normal.set(sphere.position).sub(cx, cy, cz);
         float dist = _normal.length();
         if (dist >= rad) return;
-        if (dist < 0.0001f) { _normal.set(0, 1, 0); dist = 0.0001f; }
-        _normal.div(dist);
+        if (dist < 0.0001f) { 
+            _normal.set(0, 1, 0); 
+            dist = 0.0001f; 
+        } else {
+            _normal.div(dist);
+        }
 
         float pen = rad - dist;
         float invMassSum = (sphere.isStatic ? 0 : 1f/sphere.mass) + (cube.isStatic ? 0 : 1f/cube.mass);
