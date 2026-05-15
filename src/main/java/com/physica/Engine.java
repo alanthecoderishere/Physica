@@ -153,13 +153,15 @@ public class Engine {
         cache = new SimulationCache();
         timeline = new TimelineController(cache);
 
-        // Run the "Live Script"
-        String liveScript = 
+        // Default script showcasing the new full physics system
+        String liveScript =
             "phy: enable;\n" +
-            "spawn(sphere): id[1], rad{2.0}, pos{0,10.0,0};\n" +
-            "spawn(cube): id[2], size{8,1,8}, pos{0,0.5,0};\n" +
+            "phy_gravity: {0,-9.81,0};\n" +
+            "phy_wind: {0.3,0,0};\n" +
+            "spawn(sphere): id[1], rad{1.5}, pos{-2,12,0}, mass{1.0}, bounce{0.65}, friction{0.3};\n" +
+            "spawn(sphere): id[2], rad{1.0}, pos{2,16,0}, mass{0.5}, bounce{0.8}, friction{0.1};\n" +
+            "spawn(cube): id[3], size{12,1,12}, pos{0,0,0}, static{true}, friction{0.6};\n" +
             "anim_interpolation: linear;\n" +
-            "anim_render: 1.5;\n" + // Preview interpolation exactly 1.5 seconds into the fall
             "phy_sim: loop;";
         parser.parseScript(liveScript);
         
@@ -195,6 +197,11 @@ public class Engine {
 
             while (accumulator >= fixedTimeStep) {
                 if (parser.isPhysicsEnabled() && !timeline.hasForcedRenderTime()) {
+                    // Sync global physics config from script
+                    physics.setGravity(parser.getGravity().x, parser.getGravity().y, parser.getGravity().z);
+                    physics.setWind(parser.getWind().x, parser.getWind().y, parser.getWind().z);
+                    // Drain one-shot impulses from the script queue
+                    parser.drainImpulses();
                     physics.update(new ArrayList<>(parser.getEntities().values()), (float)fixedTimeStep);
                     currentSimTime += fixedTimeStep;
                     cache.saveSnapshot(currentSimTime, new ArrayList<>(parser.getEntities().values()));
