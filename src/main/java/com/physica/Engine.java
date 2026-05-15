@@ -138,9 +138,9 @@ public class Engine {
         editorUI.init(window, parser, console, timeline, ""); // Initial script set later
 
         // Setup input callbacks and chain them with ImGui's
-        var prevScroll = glfwSetScrollCallback(window, (win, xoffset, yoffset) -> {
-            // Forward to ImGui
-            if (prevScroll != null) prevScroll.invoke(win, xoffset, yoffset);
+        final org.lwjgl.glfw.GLFWScrollCallback[] prevScroll = {null};
+        prevScroll[0] = glfwSetScrollCallback(window, (win, xoffset, yoffset) -> {
+            if (prevScroll[0] != null) prevScroll[0].invoke(win, xoffset, yoffset);
             
             if (isInViewport()) {
                 camera.zoom((float) yoffset * 1.5f);
@@ -149,9 +149,9 @@ public class Engine {
 
         double[] lastX = {0};
         double[] lastY = {0};
-        var prevCursor = glfwSetCursorPosCallback(window, (win, xpos, ypos) -> {
-            // Forward to ImGui
-            if (prevCursor != null) prevCursor.invoke(win, xpos, ypos);
+        final org.lwjgl.glfw.GLFWCursorPosCallback[] prevCursor = {null};
+        prevCursor[0] = glfwSetCursorPosCallback(window, (win, xpos, ypos) -> {
+            if (prevCursor[0] != null) prevCursor[0].invoke(win, xpos, ypos);
 
             float dx = (float) (xpos - lastX[0]);
             float dy = (float) (ypos - lastY[0]);
