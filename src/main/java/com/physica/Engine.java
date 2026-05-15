@@ -11,7 +11,13 @@ import imgui.ImGui;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL30.*;
+import static org.lwjgl.stb.STBImage.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
+import org.lwjgl.glfw.GLFWImage;
+import org.lwjgl.system.MemoryStack;
+
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 
 import java.util.ArrayList;
 
@@ -19,6 +25,8 @@ public class Engine {
     private long window;
     private int width = 1280;
     private int height = 720;
+    private int windowWidth = 1280;
+    private int windowHeight = 720;
     
     private Shader solidShader;
     private Shader gridShader;
@@ -77,10 +85,32 @@ public class Engine {
             throw new RuntimeException("Failed to create the GLFW window");
         }
 
+        // Set Window Icon
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+            IntBuffer comp = stack.mallocInt(1);
+
+            ByteBuffer icon = stbi_load("physicaLogo.png", w, h, comp, 4);
+            if (icon != null) {
+                GLFWImage image = GLFWImage.malloc(stack);
+                image.set(w.get(0), h.get(0), icon);
+                GLFWImage.Buffer images = GLFWImage.malloc(1, stack);
+                images.put(0, image);
+                glfwSetWindowIcon(window, images);
+                stbi_image_free(icon);
+            }
+        }
+
         glfwSetFramebufferSizeCallback(window, (win, w, h) -> {
             this.width = w;
             this.height = h;
             glViewport(0, 0, w, h);
+        });
+
+        glfwSetWindowSizeCallback(window, (win, w, h) -> {
+            this.windowWidth = w;
+            this.windowHeight = h;
         });
 
         GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
@@ -260,7 +290,7 @@ public class Engine {
                 }
             }
 
-            editorUI.render(displayedFps, currentSimTime, width, height);
+            editorUI.render(displayedFps, currentSimTime, windowWidth, windowHeight);
 
             glfwSwapBuffers(window);
             glfwPollEvents();
@@ -277,8 +307,8 @@ public class Engine {
         double x = mouseX[0];
         double y = mouseY[0];
         return x > UI_LEFT_W
-            && x < (width  - UI_RIGHT_W)
+            && x < (windowWidth  - UI_RIGHT_W)
             && y > UI_TOPBAR_H
-            && y < (height - UI_CONSOLE_H);
+            && y < (windowHeight - UI_CONSOLE_H);
     }
 }
