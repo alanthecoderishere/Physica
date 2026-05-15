@@ -85,20 +85,23 @@ public class Engine {
             throw new RuntimeException("Failed to create the GLFW window");
         }
 
-        // Set Window Icon
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            IntBuffer w = stack.mallocInt(1);
-            IntBuffer h = stack.mallocInt(1);
-            IntBuffer comp = stack.mallocInt(1);
+        // Set Window Icon (Disabled on macOS Cocoa as it's unsupported and throws an error)
+        String os = System.getProperty("os.name").toLowerCase();
+        if (!os.contains("mac")) {
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                IntBuffer w = stack.mallocInt(1);
+                IntBuffer h = stack.mallocInt(1);
+                IntBuffer comp = stack.mallocInt(1);
 
-            ByteBuffer icon = stbi_load("physicaLogo.png", w, h, comp, 4);
-            if (icon != null) {
-                GLFWImage image = GLFWImage.malloc(stack);
-                image.set(w.get(0), h.get(0), icon);
-                GLFWImage.Buffer images = GLFWImage.malloc(1, stack);
-                images.put(0, image);
-                glfwSetWindowIcon(window, images);
-                stbi_image_free(icon);
+                ByteBuffer icon = stbi_load("physicaLogo.png", w, h, comp, 4);
+                if (icon != null) {
+                    GLFWImage image = GLFWImage.malloc(stack);
+                    image.set(w.get(0), h.get(0), icon);
+                    GLFWImage.Buffer images = GLFWImage.malloc(1, stack);
+                    images.put(0, image);
+                    glfwSetWindowIcon(window, images);
+                    stbi_image_free(icon);
+                }
             }
         }
 
@@ -132,10 +135,16 @@ public class Engine {
         // Setup Camera at Orbit Pos: 0.0, 6.5, 18.0
         camera = new Camera(0.0f, 6.5f, 18.0f);
         
-        // Initialize EditorUI FIRST so it can set its callbacks
-        // We will then wrap/chain them for the camera
+        // Initialize Core Components
+        console = new PhysicaConsole();
+        parser = new HeliumParser(console);
+        physics = new PhysicsSolver();
+        cache = new SimulationCache();
+        timeline = new TimelineController(cache);
+
+        // Initialize EditorUI SECOND so it has components but can set callbacks
         editorUI = new EditorUI();
-        editorUI.init(window, parser, console, timeline, ""); // Initial script set later
+        editorUI.init(window, parser, console, timeline, ""); 
 
         // Setup input callbacks and chain them with ImGui's
         final org.lwjgl.glfw.GLFWScrollCallback[] prevScroll = {null};
@@ -182,13 +191,7 @@ public class Engine {
         sphere = PhysicaEntity.createSphere(1.0f, 64, 64);
         grid = PhysicaEntity.createGrid(100, 1.0f);
 
-        // Initialize Console and Parser
-        console = new PhysicaConsole();
         console.log("Physica Engine v0.1.0");
-        parser = new HeliumParser(console);
-        physics = new PhysicsSolver();
-        cache = new SimulationCache();
-        timeline = new TimelineController(cache);
 
         // Default script showcasing the new full physics system
         String liveScript =
