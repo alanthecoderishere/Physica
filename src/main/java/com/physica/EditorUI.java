@@ -8,6 +8,7 @@ import imgui.flag.ImGuiInputTextFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import imgui.type.ImString;
+import imgui.type.ImBoolean;
 
 import java.util.List;
 import java.util.Map;
@@ -196,8 +197,17 @@ public class EditorUI {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // RIGHT PANEL  ·  Entity inspector
+    // RIGHT PANEL  ·  Entity inspector  (click to select → edit live)
     // ─────────────────────────────────────────────────────────────────────────
+    private int    selectedId     = -1;
+    private final float[] editPos     = {0,0,0};
+    private final float[] editMass    = {1f};
+    private final float[] editBounce  = {0.5f};
+    private final float[] editFriction= {0.4f};
+    private final float[] editDrag    = {0.98f};
+    private final float[] editAngDrag = {0.90f};
+    private final float[] impulseVec  = {0,0,0};
+
     private void renderEntityInspector(int w, int h) {
         int inspH = h - CONSOLE_H - TOPBAR_H;
         ImGui.setNextWindowPos(w - RIGHT_W, TOPBAR_H);
@@ -206,55 +216,132 @@ public class EditorUI {
         ImGui.begin("Inspector",
                 ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize);
 
+        // ── Entity list ──────────────────────────────────────────────────────
         ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
-        ImGui.text("ENTITIES");
+        ImGui.text("SCENE  (" + parser.getEntities().size() + " objects)");
         ImGui.popStyleColor();
         ImGui.separator();
 
         Map<Integer, SceneEntity> entities = parser.getEntities();
-        if (entities.isEmpty()) {
-            ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
-            ImGui.text("  No entities spawned.");
-            ImGui.popStyleColor();
-        }
+
+        // Validate selectedId still exists
+        if (selectedId != -1 && !entities.containsKey(selectedId)) selectedId = -1;
 
         for (SceneEntity e : entities.values()) {
-            String header = String.format("[%d] %s", e.id, e.type.toUpperCase());
-            ImGui.pushStyleColor(ImGuiCol.Text, CLR_ACCENT[0], CLR_ACCENT[1], CLR_ACCENT[2], 1f);
-            boolean open = ImGui.treeNode(header + "##" + e.id);
-            ImGui.popStyleColor();
+            boolean isSelected = e.id == selectedId;
+            float[] hdr = isSelected ? CLR_ACCENT : CLR_DIM;
+            ImGui.pushStyleColor(ImGuiCol.Text,        hdr[0], hdr[1], hdr[2], 1f);
+            ImGui.pushStyleColor(ImGuiCol.Header,       0.12f, 0.35f, 0.14f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.HeaderHovered,0.18f, 0.50f, 0.20f, 1f);
 
-            if (open) {
-                ImGui.pushStyleColor(ImGuiCol.Text, CLR_DIM[0], CLR_DIM[1], CLR_DIM[2], 1f);
+            String label = String.format("[%d] %s  •  %.1f %.1f %.1f##sel%d",
+                e.id, e.type.toUpperCase(),
+                e.visualPosition.x, e.visualPosition.y, e.visualPosition.z, e.id);
 
-                ImGui.text(String.format("  Pos   %.2f  %.2f  %.2f",
-                        e.visualPosition.x, e.visualPosition.y, e.visualPosition.z));
-                ImGui.text(String.format("  Scale %.2f  %.2f  %.2f",
-                        e.scale.x, e.scale.y, e.scale.z));
-                ImGui.text(String.format("  Vel   %.2f  %.2f  %.2f",
-                        e.velocity.x, e.velocity.y, e.velocity.z));
-                ImGui.text("  Static: " + (e.isStatic ? "yes" : "no"));
-                ImGui.text("  Mass:   " + e.mass);
-
-                ImGui.popStyleColor();
-                ImGui.treePop();
+            if (ImGui.selectable(label, isSelected)) {
+                selectedId = isSelected ? -1 : e.id;
+                if (selectedId != -1) loadEntityIntoEdit(e);
             }
+            ImGui.popStyleColor(3);
         }
 
         ImGui.separator();
 
-        // Sim stats block
-        ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
-        ImGui.text("SIMULATION");
-        ImGui.popStyleColor();
+        // ── Edit panel for selected entity ───────────────────────────────────
+        SceneEntity sel = selectedId != -1 ? entities.get(selectedId) : null;
+        if (sel != null) {
+            ImGui.pushStyleColor(ImGuiCol.Text, CLR_ACCENT[0], CLR_ACCENT[1], CLR_ACCENT[2], 1f);
+            ImGui.text("EDIT  [" + selectedId + "] " + sel.type.toUpperCase());
+            ImGui.popStyleColor();
+            ImGui.separator();
+
+            float fw = RIGHT_W - 16;
+
+            // Position
+            ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
+            ImGui.text("Position"); ImGui.popStyleColor();
+            ImGui.setNextItemWidth(fw);
+            if (ImGui.dragFloat3("##pos", editPos, 0.05f)) {
+                sel.position.set(editPos[0], editPos[1], editPos[2]);
+                sel.visualPosition.set(editPos[0], editPos[1], editPos[2]);
+            }
+
+            // Mass
+            ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
+            ImGui.text("Mass"); ImGui.popStyleColor();
+            ImGui.setNextItemWidth(fw);
+            if (ImGui.sliderFloat("##mass", editMass, 0.1f, 100f, "%.2f")) sel.mass = editMass[0];
+
+            // Bounce (restitution)
+            ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
+            ImGui.text("Bounce"); ImGui.popStyleColor();
+            ImGui.setNextItemWidth(fw);
+            if (ImGui.sliderFloat("##bnc", editBounce, 0f, 1f, "%.2f")) sel.restitution = editBounce[0];
+
+            // Friction
+            ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
+            ImGui.text("Friction"); ImGui.popStyleColor();
+            ImGui.setNextItemWidth(fw);
+            if (ImGui.sliderFloat("##fric", editFriction, 0f, 1f, "%.2f")) sel.friction = editFriction[0];
+
+            // Linear drag
+            ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
+            ImGui.text("Linear Drag"); ImGui.popStyleColor();
+            ImGui.setNextItemWidth(fw);
+            if (ImGui.sliderFloat("##drag", editDrag, 0.85f, 1f, "%.3f")) sel.drag = editDrag[0];
+
+            // Angular drag
+            ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
+            ImGui.text("Angular Drag"); ImGui.popStyleColor();
+            ImGui.setNextItemWidth(fw);
+            if (ImGui.sliderFloat("##adrag", editAngDrag, 0.5f, 1f, "%.3f")) sel.angularDrag = editAngDrag[0];
+
+            ImBoolean imStatic = new ImBoolean(sel.isStatic);
+            if (ImGui.checkbox("Is Static", imStatic)) sel.isStatic = imStatic.get();
+
+            ImGui.separator();
+
+            // Read-only velocity
+            ImGui.pushStyleColor(ImGuiCol.Text, CLR_DIM[0], CLR_DIM[1], CLR_DIM[2], 1f);
+            ImGui.text(String.format("Vel  %.2f  %.2f  %.2f", sel.velocity.x, sel.velocity.y, sel.velocity.z));
+            ImGui.text(String.format("ωVel %.2f  %.2f  %.2f", sel.angularVelocity.x, sel.angularVelocity.y, sel.angularVelocity.z));
+            ImGui.popStyleColor();
+
+            ImGui.separator();
+
+            // Impulse
+            ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
+            ImGui.text("Apply Impulse"); ImGui.popStyleColor();
+            ImGui.setNextItemWidth(fw);
+            ImGui.dragFloat3("##imp", impulseVec, 0.1f);
+
+            ImGui.pushStyleColor(ImGuiCol.Button,        0.10f, 0.30f, 0.12f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.18f, 0.50f, 0.20f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive,  0.28f, 0.70f, 0.30f, 1f);
+            if (ImGui.button("▶ APPLY", fw, 22)) {
+                sel.applyImpulse(new org.joml.Vector3f(impulseVec[0], impulseVec[1], impulseVec[2]));
+                impulseVec[0] = impulseVec[1] = impulseVec[2] = 0;
+            }
+            ImGui.popStyleColor(3);
+        } else {
+            ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
+            ImGui.text("  Click an entity to edit.");
+            ImGui.popStyleColor();
+        }
+
         ImGui.separator();
 
+        // Sim stats
+        ImGui.pushStyleColor(ImGuiCol.Text, CLR_SUBTLE[0], CLR_SUBTLE[1], CLR_SUBTLE[2], 1f);
+        ImGui.text("SIMULATION"); ImGui.popStyleColor();
+        ImGui.separator();
         boolean phys = parser.isPhysicsEnabled();
-        float[] col = phys ? CLR_ACCENT : CLR_RED;
-        ImGui.pushStyleColor(ImGuiCol.Text, col[0], col[1], col[2], 1f);
+        ImGui.pushStyleColor(ImGuiCol.Text,
+                phys ? CLR_ACCENT[0] : CLR_RED[0],
+                phys ? CLR_ACCENT[1] : CLR_RED[1],
+                phys ? CLR_ACCENT[2] : CLR_RED[2], 1f);
         ImGui.text("  Physics:   " + (phys ? "RUNNING" : "STOPPED"));
         ImGui.popStyleColor();
-
         ImGui.pushStyleColor(ImGuiCol.Text, CLR_DIM[0], CLR_DIM[1], CLR_DIM[2], 1f);
         ImGui.text("  Interp:    " + (parser.isInterpolationLinear() ? "LINEAR" : "NONE"));
         float rTime = parser.getForcedRenderTime();
@@ -262,8 +349,18 @@ public class EditorUI {
         ImGui.popStyleColor();
 
         ImGui.end();
-        ImGui.popStyleColor(); // WindowBg
+        ImGui.popStyleColor();
     }
+
+    private void loadEntityIntoEdit(SceneEntity e) {
+        editPos[0] = e.position.x; editPos[1] = e.position.y; editPos[2] = e.position.z;
+        editMass[0]    = e.mass;
+        editBounce[0]  = e.restitution;
+        editFriction[0]= e.friction;
+        editDrag[0]    = e.drag;
+        editAngDrag[0] = e.angularDrag;
+    }
+
 
     // ─────────────────────────────────────────────────────────────────────────
     // BOTTOM PANEL  ·  Console log
