@@ -9,7 +9,7 @@
 ![JOML](https://img.shields.io/badge/JOML-1.10.5-B2F2BB?style=flat-square)
 ![ImGui](https://img.shields.io/badge/ImGui--Java-1.86.11-B2F2BB?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-B2F2BB?style=flat-square)
-![Status](https://img.shields.io/badge/status-v0.1.0%20alpha-B2F2BB?style=flat-square)
+![Status](https://img.shields.io/badge/status-v0.2.0%20alpha-B2F2BB?style=flat-square)
 
 *Spawn entities. Write physics scripts. Scrub through time.*
 
