@@ -40,7 +40,11 @@ dependencies {
 
 application {
     mainClass = 'com.physica.Engine'
-    applicationDefaultJvmArgs = ['-XstartOnFirstThread']
+    applicationDefaultJvmArgs = [
+        '-XstartOnFirstThread',
+        '-Xdock:icon=physicaLogo.png',
+        '-Xdock:name=Physica'
+    ]
 }
 
 tasks.withType(JavaCompile) {

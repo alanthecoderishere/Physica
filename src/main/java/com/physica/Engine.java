@@ -20,12 +20,6 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
 import java.util.ArrayList;
-import java.awt.Taskbar;
-import java.awt.Toolkit;
-import java.net.URL;
-import java.io.File;
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 
 public class Engine {
     private long window;
@@ -61,7 +55,6 @@ public class Engine {
 
     public void run() {
         init();
-        setDockIcon();
         loop();
         
         editorUI.cleanup();
@@ -319,21 +312,4 @@ public class Engine {
             && y < (windowHeight - UI_CONSOLE_H);
     }
 
-    private void setDockIcon() {
-        try {
-            // Check if Taskbar is supported on this platform
-            if (Taskbar.isTaskbarSupported()) {
-                Taskbar taskbar = Taskbar.getTaskbar();
-                if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
-                    File iconFile = new File("physicaLogo.png");
-                    if (iconFile.exists()) {
-                        BufferedImage img = ImageIO.read(iconFile);
-                        taskbar.setIconImage(img);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Silently fail if dock icon can't be set
-        }
-    }
 }
