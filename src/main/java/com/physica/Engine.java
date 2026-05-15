@@ -321,11 +321,15 @@ public class Engine {
 
     private void setDockIcon() {
         try {
-            if (Taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
-                File iconFile = new File("physicaLogo.png");
-                if (iconFile.exists()) {
-                    BufferedImage img = ImageIO.read(iconFile);
-                    Taskbar.getTaskbar().setIconImage(img);
+            // Check if Taskbar is supported on this platform
+            if (Taskbar.isTaskbarSupported()) {
+                Taskbar taskbar = Taskbar.getTaskbar();
+                if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
+                    File iconFile = new File("physicaLogo.png");
+                    if (iconFile.exists()) {
+                        BufferedImage img = ImageIO.read(iconFile);
+                        taskbar.setIconImage(img);
+                    }
                 }
             }
         } catch (Exception e) {
