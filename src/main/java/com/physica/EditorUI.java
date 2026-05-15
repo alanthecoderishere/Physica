@@ -57,6 +57,10 @@ public class EditorUI {
         imGuiGl3.init("#version 410 core");
     }
 
+    public void updateScript(String script) {
+        this.scriptInput.set(script);
+    }
+
     // ── render ────────────────────────────────────────────────────────────────
     public void render(int fps, float simTime, int w, int h) {
         imGuiGlfw.newFrame();

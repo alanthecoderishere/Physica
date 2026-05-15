@@ -132,33 +132,40 @@ public class Engine {
         // Setup Camera at Orbit Pos: 0.0, 6.5, 18.0
         camera = new Camera(0.0f, 6.5f, 18.0f);
         
-        // Setup input callbacks for Camera
-        glfwSetScrollCallback(window, (win, xoffset, yoffset) -> {
-            if (!isInViewport()) return;
-            camera.zoom((float) yoffset * 1.5f);
+        // Initialize EditorUI FIRST so it can set its callbacks
+        // We will then wrap/chain them for the camera
+        editorUI = new EditorUI();
+        editorUI.init(window, parser, console, timeline, ""); // Initial script set later
+
+        // Setup input callbacks and chain them with ImGui's
+        var prevScroll = glfwSetScrollCallback(window, (win, xoffset, yoffset) -> {
+            // Forward to ImGui
+            if (prevScroll != null) prevScroll.invoke(win, xoffset, yoffset);
+            
+            if (isInViewport()) {
+                camera.zoom((float) yoffset * 1.5f);
+            }
         });
 
         double[] lastX = {0};
         double[] lastY = {0};
-        
-        glfwSetCursorPosCallback(window, (win, xpos, ypos) -> {
+        var prevCursor = glfwSetCursorPosCallback(window, (win, xpos, ypos) -> {
+            // Forward to ImGui
+            if (prevCursor != null) prevCursor.invoke(win, xpos, ypos);
+
             float dx = (float) (xpos - lastX[0]);
             float dy = (float) (ypos - lastY[0]);
             lastX[0] = xpos;
             lastY[0] = ypos;
-            mouseX[0] = xpos;
-            mouseY[0] = ypos;
 
-            if (!isInViewport()) return;
-
-            if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-                // Orbit
-                camera.addYaw(dx * 0.005f);
-                camera.addPitch(dy * 0.005f);
-            } else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS || 
-                       glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS) {
-                // Pan
-                camera.pan(-dx * 0.015f, dy * 0.015f);
+            if (isInViewport()) {
+                if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+                    camera.addYaw(dx * 0.005f);
+                    camera.addPitch(dy * 0.005f);
+                } else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS || 
+                           glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS) {
+                    camera.pan(-dx * 0.015f, dy * 0.015f);
+                }
             }
         });
         
@@ -195,8 +202,8 @@ public class Engine {
             "phy_sim: loop;";
         parser.parseScript(liveScript);
         
-        editorUI = new EditorUI();
-        editorUI.init(window, parser, console, timeline, liveScript);
+        // Update EditorUI with the parsed script
+        editorUI.updateScript(liveScript);
     }
 
     private void loop() {
@@ -304,12 +311,14 @@ public class Engine {
     /** Returns true if the current mouse position is inside the 3D viewport area,
      *  i.e. NOT over any ImGui panel (left editor, right inspector, top bar, bottom console). */
     private boolean isInViewport() {
-        double x = mouseX[0];
-        double y = mouseY[0];
-        return x > UI_LEFT_W
-            && x < (windowWidth  - UI_RIGHT_W)
-            && y > UI_TOPBAR_H
-            && y < (windowHeight - UI_CONSOLE_H);
+        double[] x = new double[1];
+        double[] y = new double[1];
+        glfwGetCursorPos(window, x, y);
+        
+        return x[0] > UI_LEFT_W
+            && x[0] < (windowWidth  - UI_RIGHT_W)
+            && y[0] > UI_TOPBAR_H
+            && y[0] < (windowHeight - UI_CONSOLE_H);
     }
 
 }
