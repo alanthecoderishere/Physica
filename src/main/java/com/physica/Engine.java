@@ -32,10 +32,6 @@ public class Engine {
     private Shader gridShader;
     private Camera camera;
     
-    // Mouse tracking for viewport vs ImGui panel detection
-    private final double[] mouseX = {0};
-    private final double[] mouseY = {0};
-    
     // Panel bounds (must match EditorUI constants)
     private static final int UI_LEFT_W    = 340;
     private static final int UI_RIGHT_W   = 280;
