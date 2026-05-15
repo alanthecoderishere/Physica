@@ -20,6 +20,10 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
 import java.util.ArrayList;
+import java.awt.Taskbar;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.io.InputStream;
 
 public class Engine {
     private long window;
@@ -81,23 +85,30 @@ public class Engine {
             throw new RuntimeException("Failed to create the GLFW window");
         }
 
-        // Set Window Icon (Disabled on macOS Cocoa as it's unsupported and throws an error)
-        String os = System.getProperty("os.name").toLowerCase();
-        if (!os.contains("mac")) {
-            try (MemoryStack stack = MemoryStack.stackPush()) {
-                IntBuffer w = stack.mallocInt(1);
-                IntBuffer h = stack.mallocInt(1);
-                IntBuffer comp = stack.mallocInt(1);
+        // Set Window Icon (Window title bar)
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+            IntBuffer comp = stack.mallocInt(1);
 
-                ByteBuffer icon = stbi_load("physicaLogo.png", w, h, comp, 4);
-                if (icon != null) {
-                    GLFWImage image = GLFWImage.malloc(stack);
-                    image.set(w.get(0), h.get(0), icon);
-                    GLFWImage.Buffer images = GLFWImage.malloc(1, stack);
-                    images.put(0, image);
-                    glfwSetWindowIcon(window, images);
-                    stbi_image_free(icon);
+            // Load from resources for JAR compatibility
+            try (InputStream is = Engine.class.getResourceAsStream("/logo.png")) {
+                if (is != null) {
+                    byte[] bytes = is.readAllBytes();
+                    ByteBuffer buffer = ByteBuffer.allocateDirect(bytes.length);
+                    buffer.put(bytes).flip();
+                    ByteBuffer icon = stbi_load_from_memory(buffer, w, h, comp, 4);
+                    if (icon != null) {
+                        GLFWImage image = GLFWImage.malloc(stack);
+                        image.set(w.get(0), h.get(0), icon);
+                        GLFWImage.Buffer images = GLFWImage.malloc(1, stack);
+                        images.put(0, image);
+                        glfwSetWindowIcon(window, images);
+                        stbi_image_free(icon);
+                    }
                 }
+            } catch (Exception e) {
+                // Ignore icon loading errors
             }
         }
 
@@ -304,6 +315,22 @@ public class Engine {
     }
 
     public static void main(String[] args) {
+        // Set Dock Icon early on macOS
+        try {
+            if (Taskbar.isTaskbarSupported()) {
+                Taskbar taskbar = Taskbar.getTaskbar();
+                if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
+                    try (InputStream is = Engine.class.getResourceAsStream("/logo.png")) {
+                        if (is != null) {
+                            taskbar.setIconImage(ImageIO.read(is));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Ignore dock icon errors
+        }
+
         new Engine().run();
     }
 
